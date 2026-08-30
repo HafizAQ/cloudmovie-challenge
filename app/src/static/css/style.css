@@ -1,0 +1,132 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
+  background:
+    linear-gradient(135deg,
+      #10172a,
+      #1f2937);
+  color: #f9fafb;
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.card {
+  width: 100%;
+  max-width: 650px;
+  background: #172033;
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+h1 {
+  margin-top: 10px;
+}
+
+.subtitle {
+  color: #cbd5e1;
+  margin-bottom: 30px;
+}
+
+.actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.button,
+.answer-button {
+  display: inline-block;
+  padding: 13px 22px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.button:hover,
+.answer-button:hover {
+  opacity: 0.9;
+}
+
+.secondary {
+  background: #475569;
+}
+
+.emoji-clue {
+  font-size: 60px;
+  margin: 30px 0;
+}
+
+.options {
+  display: grid;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+.answer-button {
+  width: 100%;
+}
+
+.result {
+  margin: 20px 0;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.correct {
+  background: #166534;
+}
+
+.incorrect {
+  background: #991b1b;
+}
+
+.back-link,
+.leaderboard-link {
+  color: #93c5fd;
+  text-decoration: none;
+}
+
+.back-link {
+  display: block;
+  text-align: left;
+}
+
+.leaderboard-link {
+  display: inline-block;
+  margin-top: 25px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 25px 0;
+}
+
+th,
+td {
+  padding: 12px;
+  border-bottom: 1px solid #334155;
+}
+
+th {
+  color: #93c5fd;
+}
