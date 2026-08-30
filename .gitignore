@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+
+# Secrets
+*.pem
+*.key
+credentials
+secrets.*
+
+# IDE
+.vscode/
+.idea/
+
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Docker
+docker-compose.override.yml
+
+# Build artifacts
+dist/
+build/
+
+# Lambda packages
+*.zip
+lambda/**/package/
