@@ -9,3 +9,10 @@ variable "aws_region" {
   type        = string
   default     = "eu-central-1"
 }
+
+
+variable "enable_nat" {
+  description = "Create NAT Gateway for private subnet Internet access"
+  type        = bool
+  default     = false
+}

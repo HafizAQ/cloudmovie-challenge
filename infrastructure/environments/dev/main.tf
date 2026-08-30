@@ -8,3 +8,18 @@ locals {
     Purpose     = "Capstone"
   }
 }
+
+
+module "networking" {
+  source = "../../modules/networking"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  enable_nat = var.enable_nat
+}
+
+
+
+
+
