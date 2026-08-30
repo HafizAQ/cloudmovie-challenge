@@ -31,6 +31,13 @@ module "security" {
   vpc_id = module.networking.vpc_id
 }
 
+module "ecr" {
+  source = "../../modules/ecr"
 
+  project_name = var.project_name
+  environment  = var.environment
+
+  ec2_role_name = module.security.ec2_role_name
+}
 
 

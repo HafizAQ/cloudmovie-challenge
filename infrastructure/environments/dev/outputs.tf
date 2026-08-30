@@ -12,3 +12,7 @@ output "environment" {
   description = "Deployment environment"
   value       = var.environment
 }
+
+output "ecr_repository_url" {
+  value = module.ecr.repository_url
+}
