@@ -9,7 +9,8 @@ output "app_security_group_id" {
 
 
 output "ec2_role_name" {
-  value = aws_iam_role.ec2.name
+  description = "Name of EC2 IAM role"
+  value       = aws_iam_role.ec2.name
 }
 
 output "instance_profile_name" {

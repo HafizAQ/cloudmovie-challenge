@@ -26,8 +26,9 @@ resource "aws_launch_template" "app" {
     templatefile(
       "${path.module}/user_data.sh.tpl",
       {
-        aws_region         = var.aws_region
-        ecr_repository_url = var.ecr_repository_url
+        aws_region          = var.aws_region
+        ecr_repository_url  = var.ecr_repository_url
+        dynamodb_table_name = var.dynamodb_table_name
       }
     )
   )
@@ -55,5 +56,46 @@ resource "aws_instance" "standalone" {
 
   tags = {
     Name = "${var.project_name}-${var.environment}-validation"
+  }
+}
+
+
+resource "aws_autoscaling_group" "app" {
+  count = var.enable_asg ? 1 : 0
+
+  name = "${var.project_name}-${var.environment}-asg"
+
+  min_size         = 1
+  desired_capacity = 1
+  max_size         = 2
+
+  vpc_zone_identifier = var.private_subnet_ids
+
+  target_group_arns = var.target_group_arns
+
+  health_check_type         = "ELB"
+  health_check_grace_period = 180
+
+  launch_template {
+    id      = aws_launch_template.app.id
+    version = "$Latest"
+  }
+
+  instance_refresh {
+    strategy = "Rolling"
+
+    preferences {
+      min_healthy_percentage = 0
+    }
+
+    triggers = [
+      "launch_template"
+    ]
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "${var.project_name}-${var.environment}-app"
+    propagate_at_launch = true
   }
 }

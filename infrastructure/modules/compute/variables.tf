@@ -35,3 +35,21 @@ variable "create_standalone" {
   type    = bool
   default = false
 }
+
+
+variable "target_group_arns" {
+  description = "Target groups attached to the application Auto Scaling Group"
+  type        = list(string)
+  default     = []
+}
+
+variable "enable_asg" {
+  description = "Whether to create the application Auto Scaling Group"
+  type        = bool
+  default     = false
+}
+
+variable "dynamodb_table_name" {
+  description = "DynamoDB leaderboard table name"
+  type        = string
+}

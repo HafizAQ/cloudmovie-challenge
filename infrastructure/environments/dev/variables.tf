@@ -34,3 +34,10 @@ variable "create_standalone" {
   type        = bool
   default     = false
 }
+
+variable "enable_asg" {
+  description = "Whether to create the application Auto Scaling Group"
+  type        = bool
+  default     = false
+}
+

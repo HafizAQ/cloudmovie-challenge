@@ -55,7 +55,37 @@ module "compute" {
 
   ecr_repository_url = module.ecr.repository_url
 
-  instance_type     = var.instance_type
+  dynamodb_table_name = module.database.table_name
+
+  instance_type = var.instance_type
+
   create_standalone = var.create_standalone
+  enable_asg        = var.enable_asg
+
+  target_group_arns = [
+    module.alb.target_group_arn
+  ]
 }
 
+
+module "alb" {
+  source = "../../modules/alb"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  vpc_id = module.networking.vpc_id
+
+  public_subnet_ids = module.networking.public_subnet_ids
+
+  security_group_id = module.security.alb_security_group_id
+}
+
+module "database" {
+  source = "../../modules/database"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  ec2_role_name = module.security.ec2_role_name
+}

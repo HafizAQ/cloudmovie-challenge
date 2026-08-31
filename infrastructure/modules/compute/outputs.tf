@@ -17,3 +17,9 @@ output "ami_id" {
   description = "Amazon Linux 2023 AMI selected through SSM"
   value       = nonsensitive(data.aws_ssm_parameter.amazon_linux.value)
 }
+
+output "autoscaling_group_name" {
+  description = "Name of application Auto Scaling Group"
+  value       = try(aws_autoscaling_group.app[0].name, null)
+}
+

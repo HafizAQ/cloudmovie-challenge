@@ -25,4 +25,8 @@ docker run \
     --restart unless-stopped \
     --name cloudmovie \
     --publish 5000:5000 \
+    --env DYNAMODB_TABLE="${dynamodb_table_name}" \
+    --env AWS_REGION="${aws_region}" \
     "${ecr_repository_url}:latest"
+
+    

@@ -38,3 +38,20 @@ output "application_ami_id" {
   description = "Amazon Linux 2023 AMI used by application instances"
   value       = module.compute.ami_id
 }
+
+
+output "alb_dns_name" {
+  description = "Public DNS name of CloudMovie Challenge"
+  value       = module.alb.dns_name
+}
+
+output "autoscaling_group_name" {
+  description = "Application Auto Scaling Group"
+  value       = module.compute.autoscaling_group_name
+}
+
+output "dynamodb_table_name" {
+  description = "Leaderboard DynamoDB table"
+  value       = module.database.table_name
+}
+
