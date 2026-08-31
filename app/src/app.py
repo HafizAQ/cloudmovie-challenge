@@ -4,6 +4,7 @@ from flask import Flask, jsonify, render_template, request
 
 from .movie_data import MOVIE_QUESTIONS
 
+from .services.leaderboard_service import LeaderboardService
 
 def create_app():
     app = Flask(__name__)
@@ -59,19 +60,54 @@ def create_app():
             question=question,
         )
 
-    @app.route("/leaderboard")
+    @app.route("/leaderboard", methods=["GET", "POST"])
     def leaderboard():
-        demo_scores = [
-            {"player": "Alex", "score": 950},
-            {"player": "Sarah", "score": 900},
-            {"player": "Ahmed", "score": 850},
-            {"player": "CloudEngineer", "score": 800},
-        ]
+        service = LeaderboardService()
+
+        if request.method == "POST":
+            player = request.form.get(
+                "player",
+                "",
+            ).strip()
+
+            score = request.form.get(
+                "score",
+                "0",
+            ).strip()
+
+            if not player:
+                return (
+                    render_template(
+                        "leaderboard.html",
+                        scores=service.get_scores(),
+                        error="Player name is required.",
+                    ),
+                    400,
+               )
+
+            try:
+                score = int(score)
+            except ValueError:
+                return (
+                    render_template(
+                        "leaderboard.html",
+                        scores=service.get_scores(),
+                        error="Score must be a number.",
+                    ),
+                    400,
+                )
+
+            service.save_score(
+              player,
+              score,
+              )
+
+        scores = service.get_scores()
 
         return render_template(
             "leaderboard.html",
-            scores=demo_scores,
-        )
+            scores=scores,
+            )
 
     @app.route("/health")
     def health():

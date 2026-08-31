@@ -29,6 +29,26 @@
         DynamoDB integration will replace these demo scores later.
       </p>
 
+      <form method="POST">
+
+        <input type="text" name="player" placeholder="Player name" required>
+
+        <input type="number" name="score" placeholder="Score" min="0" required>
+
+        <button class="button" type="submit">
+          Save Score
+        </button>
+
+      </form>
+
+      {% if error %}
+
+      <div class="result incorrect">
+        {{ error }}
+      </div>
+
+      {% endif %}
+
       <table>
 
         <thead>

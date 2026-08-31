@@ -12,8 +12,15 @@ def test_game_page(client):
     assert b"Guess the Movie" in response.data
 
 
-def test_leaderboard_page(client):
-    response = client.get("/leaderboard")
+def test_leaderboard_page(client, monkeypatch):
+    monkeypatch.setattr(
+        "src.app.LeaderboardService",
+        FakeLeaderboardService,
+    )
+
+    response = client.get(
+        "/leaderboard"
+    )
 
     assert response.status_code == 200
     assert b"Leaderboard" in response.data
@@ -71,6 +78,46 @@ def test_invalid_question(client):
     assert b"Question not found" in response.data
 
 
+def test_save_score(client, monkeypatch):
+    monkeypatch.setattr(
+        "src.app.LeaderboardService",
+        FakeLeaderboardService,
+    )
+
+    response = client.post(
+        "/leaderboard",
+        data={
+            "player": "TestPlayer",
+            "score": "800",
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"TestPlayer" in response.data
+
 #seven tests
 #This test will automatically check on CI (continuous integration) before deployment (real DevOps)
+
+
+class FakeLeaderboardService:
+    scores = [
+        {
+            "player_id": "1",
+            "player": "Alex",
+            "score": 950,
+        }
+    ]
+
+    def get_scores(self):
+        return self.scores
+
+    def save_score(self, player, score):
+        self.scores.append(
+            {
+                "player_id": "2",
+                "player": player,
+                "score": int(score),
+            }
+        )
+
 
