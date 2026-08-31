@@ -40,4 +40,22 @@ module "ecr" {
   ec2_role_name = module.security.ec2_role_name
 }
 
+module "compute" {
+  source = "../../modules/compute"
+
+  project_name = var.project_name
+  environment  = var.environment
+  aws_region   = var.aws_region
+
+  private_subnet_ids = module.networking.private_subnet_ids
+
+  security_group_id = module.security.app_security_group_id
+
+  instance_profile_name = module.security.instance_profile_name
+
+  ecr_repository_url = module.ecr.repository_url
+
+  instance_type     = var.instance_type
+  create_standalone = var.create_standalone
+}
 

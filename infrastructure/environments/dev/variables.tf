@@ -23,4 +23,14 @@ variable "enable_nat" {
   default     = false
 }
 
+variable "instance_type" {
+  description = "EC2 instance type used by the application"
+  type        = string
+  default     = "t3.micro"
+}
 
+variable "create_standalone" {
+  description = "Create temporary standalone EC2 validation instance"
+  type        = bool
+  default     = false
+}
