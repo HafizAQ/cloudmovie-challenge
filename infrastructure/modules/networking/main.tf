@@ -2,6 +2,8 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+data "aws_region" "current" {}
+
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
@@ -129,3 +131,24 @@ resource "aws_route" "private_internet" {
   destination_cidr_block = "0.0.0.0/0"
   nat_gateway_id         = aws_nat_gateway.main[0].id
 }
+
+
+# Add the S3 endpoint
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id = aws_vpc.main.id
+
+  # service_name = "com.amazonaws.${data.aws_region.current.name}.s3"
+  service_name = "com.amazonaws.${data.aws_region.current.region}.s3"
+
+  vpc_endpoint_type = "Gateway"
+
+  route_table_ids = [
+    aws_route_table.private.id
+  ]
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-s3-endpoint"
+  }
+}
+
+

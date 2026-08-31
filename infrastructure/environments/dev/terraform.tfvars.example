@@ -2,4 +2,3 @@ project_name = "cloudmovie-challenge"
 environment  = "dev"
 aws_region   = "eu-central-1"
 enable_nat = false
-
