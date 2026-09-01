@@ -6,6 +6,8 @@ from .movie_data import MOVIE_QUESTIONS
 
 from .services.leaderboard_service import LeaderboardService
 
+from src.services.movie_service import get_movie_spotlight
+
 def create_app():
     app = Flask(__name__)
 
@@ -108,6 +110,13 @@ def create_app():
             "leaderboard.html",
             scores=scores,
             )
+
+    @app.route("/api/movie-spotlight")
+    def movie_spotlight():
+
+        movie = get_movie_spotlight()
+
+        return jsonify(movie)
 
     @app.route("/health")
     def health():

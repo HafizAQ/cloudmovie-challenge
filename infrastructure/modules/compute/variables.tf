@@ -36,7 +36,6 @@ variable "create_standalone" {
   default = false
 }
 
-
 variable "target_group_arns" {
   description = "Target groups attached to the application Auto Scaling Group"
   type        = list(string)
@@ -53,3 +52,8 @@ variable "dynamodb_table_name" {
   description = "DynamoDB leaderboard table name"
   type        = string
 }
+
+variable "tmdb_secret_arn" {
+  type = string
+}
+

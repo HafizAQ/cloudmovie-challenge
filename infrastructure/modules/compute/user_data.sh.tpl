@@ -26,7 +26,7 @@ docker run \
     --name cloudmovie \
     --publish 5000:5000 \
     --env DYNAMODB_TABLE="${dynamodb_table_name}" \
+    --env TMDB_SECRET_ID="${tmdb_secret_arn}" \
     --env AWS_REGION="${aws_region}" \
     "${ecr_repository_url}:latest"
 
-    

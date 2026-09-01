@@ -29,9 +29,11 @@ resource "aws_launch_template" "app" {
         aws_region          = var.aws_region
         ecr_repository_url  = var.ecr_repository_url
         dynamodb_table_name = var.dynamodb_table_name
+        tmdb_secret_arn     = var.tmdb_secret_arn
       }
     )
   )
+
 
   tag_specifications {
     resource_type = "instance"

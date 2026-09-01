@@ -62,6 +62,8 @@ module "compute" {
   create_standalone = var.create_standalone
   enable_asg        = var.enable_asg
 
+  tmdb_secret_arn = module.secrets.secret_arn
+
   target_group_arns = [
     module.alb.target_group_arn
   ]
@@ -89,3 +91,20 @@ module "database" {
 
   ec2_role_name = module.security.ec2_role_name
 }
+
+
+module "secrets" {
+
+  source = "../../modules/secrets"
+
+
+  project_name = var.project_name
+
+  environment = var.environment
+
+  ec2_role_name = module.security.ec2_role_name
+
+
+}
+
+

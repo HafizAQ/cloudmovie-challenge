@@ -55,3 +55,12 @@ output "dynamodb_table_name" {
   value       = module.database.table_name
 }
 
+output "tmdb_secret_arn" {
+  value = module.secrets.secret_arn
+}
+
+output "target_group_arn" {
+  value = module.alb.target_group_arn
+}
+
+
