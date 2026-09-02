@@ -15,29 +15,24 @@ jobs:
 
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
-
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
           aws-region: eu-central-1
 
       - name: Build Docker
-
-        run: docker build \
-          -t cloudmovie \
-          ./app
+        run: |
+          docker build \
+            -t cloudmovie \
+            ./app
 
       - name: Login ECR
-
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Push image
-
-        run: docker tag cloudmovie \
-          ${{ secrets.ECR_URL }}:latest
-
+      - name: Tag and push image
+        run: |
+          docker tag cloudmovie \
+            ${{ secrets.ECR_URL }}:latest
 
           docker push \
-          ${{ secrets.ECR_URL }}:latest
+            ${{ secrets.ECR_URL }}:latest
