@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "app/**"
+      - ".github/workflows/deploy.yml"
+
+env:
+  AWS_REGION: eu-central-1
+  ASG_NAME: cloudmovie-challenge-dev-asg
 
 jobs:
   deploy:
@@ -18,9 +25,9 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-central-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Build Docker
+      - name: Build Docker image
         run: |
           docker build \
             -t cloudmovie \
@@ -36,3 +43,57 @@ jobs:
 
           docker push \
             ${{ secrets.ECR_URL }}:latest
+
+      - name: Start ASG instance refresh
+        id: refresh
+        run: |
+          REFRESH_ID=$(aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "$ASG_NAME" \
+            --region "$AWS_REGION" \
+            --preferences '{
+              "MinHealthyPercentage": 100,
+              "MaxHealthyPercentage": 200,
+              "InstanceWarmup": 180
+            }' \
+            --query 'InstanceRefreshId' \
+            --output text)
+
+          echo "Started instance refresh: $REFRESH_ID"
+
+          echo "refresh_id=$REFRESH_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for deployment
+        run: |
+          REFRESH_ID="${{ steps.refresh.outputs.refresh_id }}"
+
+          for attempt in {1..30}; do
+
+            STATUS=$(aws autoscaling describe-instance-refreshes \
+              --auto-scaling-group-name "$ASG_NAME" \
+              --instance-refresh-ids "$REFRESH_ID" \
+              --region "$AWS_REGION" \
+              --query 'InstanceRefreshes[0].Status' \
+              --output text)
+
+            echo "Instance refresh status: $STATUS"
+
+            case "$STATUS" in
+
+              Successful)
+                echo "Deployment completed successfully."
+                exit 0
+                ;;
+
+              Failed|Cancelled|RollbackFailed|RollbackSuccessful)
+                echo "Deployment failed with status: $STATUS"
+                exit 1
+                ;;
+
+            esac
+
+            sleep 20
+
+          done
+
+          echo "Timed out waiting for instance refresh."
+          exit 1
