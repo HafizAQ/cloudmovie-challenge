@@ -1,6 +1,87 @@
 
 # CloudMovie Challenge
 
+CloudMovie Challenge is a containerised Flask application deployed on AWS using Terraform and GitHub Actions.
+
+## Architecture
+
+Internet
+→ Application Load Balancer
+→ Auto Scaling Group
+→ Private EC2
+→ Docker / Gunicorn / Flask
+
+Supporting services:
+
+- Amazon ECR
+- DynamoDB
+- Secrets Manager
+- NAT Gateway
+- CloudWatch
+- Systems Manager
+- GitHub Actions
+
+## Key Engineering Decisions
+
+- EC2 instances are private and have no public IP.
+- ALB is the only public application entry point.
+- SSM replaces SSH administration.
+- Secrets Manager stores the TMDB credential.
+- NAT Gateway provides controlled outbound Internet access.
+- DynamoDB provides persistent application state.
+- S3 Gateway Endpoint reduces NAT traffic.
+- Terraform manages the infrastructure.
+- GitHub Actions performs container deployment.
+- ASG instance refresh performs rolling deployments.
+
+## CI/CD
+
+Push to main
+→ Docker build
+→ ECR push
+→ ASG instance refresh
+→ ALB health validation
+
+## Observability
+
+CloudWatch provides:
+
+- application logs
+- ALB metrics
+- target health
+- alarms
+- dashboard
+
+## Security
+
+- private compute
+- IAM least privilege
+- IMDSv2
+- no SSH
+- security-group isolation
+- Secrets Manager
+- ECR image scanning
+
+## Cost Optimisation
+
+- t3.micro
+- one-instance ASG for demo
+- single NAT Gateway
+- S3 Gateway Endpoint
+- ephemeral dev environment
+- Terraform destroy after demonstrations
+
+
+
+
+
+
+
+
+
+
+# CloudMovie Challenge
+
 CloudMovie Challenge is a cloud engineering capstone project built as part of the Ironhack Cloud Engineering Bootcamp.
 
 The application is an entertaining movie guessing game designed primarily to demonstrate production-style AWS infrastructure and DevOps practices.
