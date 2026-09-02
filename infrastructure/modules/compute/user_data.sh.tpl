@@ -2,7 +2,7 @@
 
 set -euxo pipefail
 
-dnf install -y docker
+dnf install -y docker amazon-cloudwatch-agent
 
 systemctl enable docker
 systemctl start docker
@@ -29,4 +29,22 @@ docker run \
     --env TMDB_SECRET_ID="${tmdb_secret_arn}" \
     --env AWS_REGION="${aws_region}" \
     "${ecr_repository_url}:latest"
+
+yum install -y amazon-cloudwatch-agent
+
+
+mkdir -p /opt/aws/amazon-cloudwatch-agent/etc
+
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'CWCONFIG'
+${cloudwatch_config}
+CWCONFIG
+
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config \
+  -m ec2 \
+  -s \
+  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+
+systemctl start amazon-cloudwatch-agent
+
 

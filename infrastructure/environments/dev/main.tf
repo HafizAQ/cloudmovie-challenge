@@ -57,16 +57,23 @@ module "compute" {
 
   dynamodb_table_name = module.database.table_name
 
+  tmdb_secret_arn = module.secrets.secret_arn
+
+  cloudwatch_config = file(
+    "${path.module}/../../modules/compute/cloudwatch-agent.json.tpl"
+  )
+
   instance_type = var.instance_type
 
   create_standalone = var.create_standalone
   enable_asg        = var.enable_asg
 
-  tmdb_secret_arn = module.secrets.secret_arn
+  cloudwatch_log_group_name = module.monitoring.log_group_name
 
   target_group_arns = [
     module.alb.target_group_arn
   ]
+
 }
 
 
@@ -107,4 +114,14 @@ module "secrets" {
 
 }
 
+module "monitoring" {
+  source = "../../modules/monitoring"
+
+  project_name = var.project_name
+  environment  = var.environment
+  aws_region   = var.aws_region
+
+  load_balancer_arn_suffix = module.alb.load_balancer_arn_suffix
+  target_group_arn_suffix  = module.alb.target_group_arn_suffix
+}
 

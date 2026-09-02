@@ -64,3 +64,13 @@ output "target_group_arn" {
 }
 
 
+output "cloudwatch_dashboard_name" {
+  description = "CloudWatch monitoring dashboard"
+  value       = module.monitoring.dashboard_name
+}
+
+output "cloudwatch_log_group_name" {
+  description = "CloudWatch application log group"
+  value       = module.monitoring.log_group_name
+}
+

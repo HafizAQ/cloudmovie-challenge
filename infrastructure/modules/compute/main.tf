@@ -22,17 +22,19 @@ resource "aws_launch_template" "app" {
     http_put_response_hop_limit = 2
   }
 
-  user_data = base64encode(
-    templatefile(
-      "${path.module}/user_data.sh.tpl",
+  user_data = base64encode(templatefile("${path.module}/user_data.sh.tpl", {
+    aws_region          = var.aws_region
+    ecr_repository_url  = var.ecr_repository_url
+    dynamodb_table_name = var.dynamodb_table_name
+    tmdb_secret_arn     = var.tmdb_secret_arn
+
+    cloudwatch_config = templatefile(
+      "${path.module}/cloudwatch-agent.json.tpl",
       {
-        aws_region          = var.aws_region
-        ecr_repository_url  = var.ecr_repository_url
-        dynamodb_table_name = var.dynamodb_table_name
-        tmdb_secret_arn     = var.tmdb_secret_arn
+        log_group_name = var.cloudwatch_log_group_name
       }
     )
-  )
+  }))
 
 
   tag_specifications {
@@ -88,12 +90,13 @@ resource "aws_autoscaling_group" "app" {
 
     preferences {
       min_healthy_percentage = 0
+      instance_warmup        = 180
     }
 
-    triggers = [
-      "launch_template"
-    ]
+    triggers = ["launch_template"]
   }
+
+
 
   tag {
     key                 = "Name"
@@ -101,3 +104,5 @@ resource "aws_autoscaling_group" "app" {
     propagate_at_launch = true
   }
 }
+
+

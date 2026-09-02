@@ -57,3 +57,15 @@ variable "tmdb_secret_arn" {
   type = string
 }
 
+variable "cloudwatch_config" {
+  description = "CloudWatch Agent configuration"
+  type        = string
+}
+
+
+variable "cloudwatch_log_group_name" {
+  description = "CloudWatch log group receiving Docker application logs"
+  type        = string
+}
+
+
