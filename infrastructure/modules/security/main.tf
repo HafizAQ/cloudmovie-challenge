@@ -95,3 +95,22 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
   role       = aws_iam_role.ec2.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
+
+
+resource "aws_security_group_rule" "app_from_alb" {
+
+  type = "ingress"
+
+  security_group_id = aws_security_group.app.id
+
+
+  source_security_group_id = aws_security_group.alb.id
+
+
+  from_port = 5000
+
+  to_port = 5000
+
+  protocol = "tcp"
+
+}
