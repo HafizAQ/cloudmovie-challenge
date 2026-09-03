@@ -97,20 +97,22 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
 }
 
 
-resource "aws_security_group_rule" "app_from_alb" {
 
-  type = "ingress"
+# resource "aws_security_group_rule" "app_from_alb" {
 
-  security_group_id = aws_security_group.app.id
+#   type = "ingress"
 
-
-  source_security_group_id = aws_security_group.alb.id
+#   security_group_id = aws_security_group.app.id
 
 
-  from_port = 5000
+#   source_security_group_id = aws_security_group.alb.id
 
-  to_port = 5000
 
-  protocol = "tcp"
+#   from_port = 5000
 
-}
+#   to_port = 5000
+
+#   protocol = "tcp"
+
+# }
+

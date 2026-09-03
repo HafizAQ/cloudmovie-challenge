@@ -74,3 +74,9 @@ output "cloudwatch_log_group_name" {
   value       = module.monitoring.log_group_name
 }
 
+output "bonus_lambda_name" {
+  value = module.lambda.function_name
+}
+
+
+

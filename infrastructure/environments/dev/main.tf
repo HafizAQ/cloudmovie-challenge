@@ -125,3 +125,17 @@ module "monitoring" {
   target_group_arn_suffix  = module.alb.target_group_arn_suffix
 }
 
+
+module "lambda" {
+  source = "../../modules/lambda"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  tmdb_secret_arn = module.secrets.secret_arn
+
+  lambda_source_file = "${path.root}/../../../lambda/bonus_challenge/lambda_function.py"
+}
+
+
+

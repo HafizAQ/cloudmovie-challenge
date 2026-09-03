@@ -1,0 +1,130 @@
+name: Infrastructure CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "infrastructure/**"
+      - "lambda/**"
+      - ".github/workflows/infra-ci.yml"
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "infrastructure/**"
+      - "lambda/**"
+
+env:
+  AWS_REGION: eu-central-1
+  LAMBDA_NAME: cloudmovie-challenge-dev-bonus-challenge
+
+jobs:
+  validate:
+    name: Validate Terraform and Lambda
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Lambda Python
+        run: |
+          python -m py_compile \
+            lambda/bonus_challenge/lambda_function.py
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+
+      - name: Terraform format check
+        run: |
+          terraform fmt \
+            -check \
+            -recursive \
+            infrastructure
+
+      - name: Terraform init without backend
+        working-directory: infrastructure/environments/dev
+        run: |
+          terraform init \
+            -backend=false
+
+      - name: Terraform validate
+        working-directory: infrastructure/environments/dev
+        run: |
+          terraform validate
+
+  lambda-smoke-test:
+    name: Lambda Smoke Test
+    runs-on: ubuntu-latest
+
+    needs:
+      - validate
+
+    # Do not call AWS from pull requests.
+    # Only test the deployed Lambda after merging/pushing to main.
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Invoke bonus Lambda
+        run: |
+          aws lambda invoke \
+            --function-name "$LAMBDA_NAME" \
+            --region "$AWS_REGION" \
+            /tmp/bonus.json
+
+          echo "Lambda response:"
+          cat /tmp/bonus.json
+
+      - name: Validate Lambda response
+        run: |
+          python <<'PY'
+          import json
+
+          with open("/tmp/bonus.json", encoding="utf-8") as file:
+              response = json.load(file)
+
+          required = {
+              "clue",
+              "question",
+              "options",
+              "answer",
+          }
+
+          missing = required - response.keys()
+
+          if missing:
+              raise SystemExit(
+                  f"Lambda response missing fields: {sorted(missing)}"
+              )
+
+          if len(response["options"]) != 4:
+              raise SystemExit(
+                  "Lambda must return exactly four movie options"
+              )
+
+          if response["answer"] not in response["options"]:
+              raise SystemExit(
+                  "Correct answer is not present in options"
+              )
+
+          print("Lambda smoke test passed.")
+          print(
+              f"Generated {len(response['options'])} answer options."
+          )
+          PY
