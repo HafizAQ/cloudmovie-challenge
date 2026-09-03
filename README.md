@@ -1,548 +1,725 @@
-# CloudMovie Challenge
+# 🎬 CloudMovie Challenge
 
-CloudMovie Challenge is an **AWS cloud-engineering capstone** built during the Ironhack Cloud Engineering Bootcamp. The application is intentionally simple - a Flask movie challenge - so the project can focus on infrastructure, security, automation, observability, resilience, and cost-aware architecture.
+![AWS](https://img.shields.io/badge/AWS-Cloud-orange)
+![Terraform](https://img.shields.io/badge/IaC-Terraform-purple)
+![Docker](https://img.shields.io/badge/Container-Docker-blue)
+![Python](https://img.shields.io/badge/Application-Flask-green)
+![CI/CD](<https://img.shields.io/badge/Deployment-GitHub%20Actions-black>)
 
-## What the project demonstrates
+CloudMovie Challenge is an **AWS Cloud Engineering Capstone Project** developed during the Ironhack Cloud Engineering Bootcamp.
 
-- Terraform-managed AWS infrastructure
-- Multi-AZ VPC with public and private subnets
-- Internet-facing Application Load Balancer
-- Private EC2 instances managed by an Auto Scaling Group
-- Docker + Gunicorn + Flask application runtime
-- Amazon ECR container registry
-- DynamoDB leaderboard persistence
-- AWS Secrets Manager for the TMDB API token
-- NAT Gateway for controlled outbound Internet access
-- S3 Gateway VPC Endpoint for private S3 access
-- AWS Systems Manager instead of SSH
-- CloudWatch monitoring, logs, dashboard, and alarms
-- GitHub Actions CI/CD with ECR publishing and ASG instance refresh
-- Explicit cost and production trade-off documentation
+The application itself is intentionally simple: users guess movies from emoji clues and compete through a leaderboard.
 
-## Architecture
+The main objective of this project is not the application complexity, but demonstrating a **production-style cloud architecture** including:
+
+- Infrastructure as Code
+- Secure AWS networking
+- Container deployment
+- CI/CD automation
+- Monitoring and alerting
+- Cloud cost awareness
+- Infrastructure testing
+
+---
+
+# 📌 Project Overview
+
+CloudMovie Challenge demonstrates how a traditional Flask application can be transformed into a cloud-native deployment.
+
+The application runs inside Docker containers on AWS EC2 instances managed through an Auto Scaling Group.
+
+The infrastructure is completely reproducible using Terraform.
+
+The deployment workflow automatically:
+
+
+Developer pushes code
+
+	|
+
+	↓
+
+GitHub Actions
+
+	|
+
+	↓
+
+Docker image build
+
+	|
+
+	↓
+
+Amazon ECR
+
+	|
+
+	↓
+
+EC2 Auto Scaling refresh
+
+	|
+
+	↓
+
+Application deployed behind ALB
+
+
+---
+
+# 🏗️ High-Level Architecture
 
 ```mermaid
 flowchart TD
-    U[Internet / User] --> ALB[Application Load Balancer\nPublic Subnets]
-    ALB --> ASG[Auto Scaling Group\nPrivate EC2]
-    ASG --> APP[Docker + Gunicorn + Flask\nPort 5000]
 
-    ECR[Amazon ECR] --> ASG
-    APP --> DDB[DynamoDB\nLeaderboard]
-    APP --> SM[Secrets Manager\nTMDB token]
-    APP --> NAT[NAT Gateway]
-    NAT --> TMDB[TMDB API]
+USER[Internet Users]
 
-    SSM[AWS Systems Manager] --> ASG
-    CW[Amazon CloudWatch] --> ASG
-    CW --> ALB
+USER --> ALB[Application Load Balancer]
 
-    GH[GitHub Actions] --> ECR
-    GH --> ASG
-```
+ALB --> ASG[Auto Scaling Group]
 
-### Request path
+ASG --> EC2[Private EC2 Instance]
 
-```text
-Internet
-   -> ALB
-   -> private EC2 / Auto Scaling Group
-   -> Docker / Gunicorn / Flask
-```
+EC2 --> DOCKER[Docker + Gunicorn + Flask]
 
-### TMDB path
+DOCKER --> DDB[DynamoDB Leaderboard]
 
-```text
-Private EC2
-   -> IAM role
-   -> Secrets Manager (retrieve token)
-   -> NAT Gateway
-   -> Internet
-   -> TMDB API
-```
+DOCKER --> SM[AWS Secrets Manager]
 
-### Persistence path
+SM --> TOKEN[TMDB API Token]
 
-```text
-Flask application
-   -> DynamoDB leaderboard
-```
+EC2 --> NAT[NAT Gateway]
 
-The EC2 layer is disposable. Leaderboard data survives instance replacement because persistent state is stored outside the compute instance.
+NAT --> TMDB[TMDB API]
 
----
 
-## Design goals
+GH[GitHub Actions]
 
-The project was designed around five goals:
+GH --> ECR[Amazon ECR]
 
-1. **Private compute** - application EC2 instances have no public IP addresses.
-2. **Repeatability** - infrastructure is created through Terraform rather than manual console configuration.
-3. **Operational visibility** - CloudWatch and ALB health checks expose application health.
-4. **Automated delivery** - GitHub Actions builds and publishes application images and refreshes the ASG.
-5. **Cost awareness** - the dev environment intentionally uses reduced capacity and can be destroyed when not required.
+ECR --> EC2
 
----
 
-## Repository structure
+CW[CloudWatch]
 
-```text
-cloudmovie-challenge/
-├── app/
-│   ├── src/
-│   │   ├── app.py
-│   │   ├── movie_data.py
-│   │   ├── services/
-│   │   │   ├── leaderboard_service.py
-│   │   │   ├── movie_service.py
-│   │   │   └── secrets_service.py
-│   │   ├── templates/
-│   │   └── static/
-│   ├── tests/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── requirements-dev.txt
-│
-├── infrastructure/
-│   ├── bootstrap/
-│   ├── modules/
-│   │   ├── networking/
-│   │   ├── security/
-│   │   ├── ecr/
-│   │   ├── compute/
-│   │   ├── alb/
-│   │   ├── database/
-│   │   ├── secrets/
-│   │   └── monitoring/
-│   └── environments/dev/
-│
-├── .github/workflows/
-│   └── deploy.yml
-│
-├── docs/
-│   ├── architecture.md
-│   ├── decisions.md
-│   ├── deployment.md
-│   └── cost.md
-│
-├── scripts/
-└── README.md
+CW --> EC2
+CW --> ALB
+
+SNS[SNS Alerts]
+
+CW --> SNS
+
+LAMBDA[AWS Lambda Bonus Feature]
+
+LAMBDA --> SM
 ```
 
 ---
 
-## Application
 
-The application runs as a Docker container using:
 
-- Python 3.12
-- Flask
-- Gunicorn
-- boto3
-- requests
+# 🚀 Application Features
 
-Important endpoints:
+## Movie Challenge
 
-| Endpoint | Purpose |
-|---|---|
-| `/` | Main CloudMovie application |
-| `/game` | Movie challenge |
-| `/leaderboard` | Persistent leaderboard |
-| `/health` | ALB/container health check |
-| `/api/movie-spotlight` | Live movie data from TMDB |
+Users can:
 
-The Docker container exposes port `5000` and includes a container health check against `/health`.
+* View emoji movie clues
+* Select answers
+* Receive instant feedback
+* Compete on leaderboard
 
----
+## Leaderboard
 
-## AWS architecture
+Implemented using:
 
-### Networking
+* Amazon DynamoDB
+* Persistent storage independent from EC2
 
-The VPC is deployed in `eu-central-1` and contains public and private subnets across multiple Availability Zones.
+## Movie Data
 
-**Public tier**
+Movie information is retrieved dynamically using:
 
-- Application Load Balancer
-- NAT Gateway
-- Internet Gateway routing
+* TMDB API
+* AWS Secrets Manager
 
-**Private tier**
+## Health Monitoring
 
-- EC2 instances in the Auto Scaling Group
-- No public IP addresses
+Application endpoint:
 
-The application security group accepts port `5000` only from the ALB security group.
+<pre class="overflow-visible! px-0!" data-start="3135" data-end="3154"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>GET /health</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></pre>
 
-### Compute
+Used by:
 
-Amazon Linux 2023 EC2 instances are launched from a Terraform-managed launch template.
-
-The instances:
-
-- use IMDSv2
-- receive an IAM instance profile
-- are administered through SSM
-- install/start Docker through `user_data`
-- authenticate to ECR
-- pull the application image
-- run the CloudMovie container
-
-### Load balancing and self-healing
-
-The ALB forwards HTTP traffic to the target group on port `5000` and checks `/health`.
-
-The Auto Scaling Group maintains desired capacity and replaces failed or terminated instances. During testing, terminating an ASG instance caused AWS to launch a replacement and register it behind the ALB.
-
-### Container registry
-
-Amazon ECR repository:
-
-```text
-cloudmovie-challenge-dev
-```
-
-The EC2 role receives ECR pull permissions, while the GitHub Actions deployment identity can publish application images.
-
-### DynamoDB
-
-Leaderboard state is stored in:
-
-```text
-cloudmovie-challenge-dev-leaderboard
-```
-
-This separates persistent data from disposable compute.
-
-### Secrets Manager + TMDB
-
-Terraform creates the Secrets Manager secret container and the EC2 IAM permission required to read it.
-
-The actual TMDB token is **not** inserted through Terraform, preventing the credential from being stored in Terraform state.
-
-At runtime the application retrieves the token and sends it as a Bearer token when calling the TMDB API.
-
-### NAT Gateway
-
-The NAT Gateway has a real application requirement: the private EC2 instance needs outbound Internet access to call TMDB.
-
-A single NAT Gateway is used in the development environment as a deliberate cost trade-off.
-
-### S3 Gateway Endpoint
-
-An S3 Gateway VPC Endpoint is associated with the private route table so S3 traffic does not need to traverse the NAT Gateway.
+* Docker health check
+* ALB target health checks
+* Monitoring validation
 
 ---
 
-## Security
 
-Implemented controls include:
+# ☁️ AWS Services Used
 
-- private EC2 instances
-- no public EC2 IP addresses
-- no SSH ingress
-- SSM-based administration
-- ALB-to-application security-group restriction
-- IAM roles instead of AWS credentials on EC2
-- Secrets Manager for the TMDB credential
-- IMDSv2 required on the launch template
-- least-privilege application permissions for DynamoDB and Secrets Manager
-- Terraform-managed security configuration
+| AWS Service               | Purpose                          |
+| ------------------------- | -------------------------------- |
+| VPC                       | Secure networking foundation     |
+| EC2                       | Application compute              |
+| Auto Scaling Group        | Self-healing infrastructure      |
+| Application Load Balancer | Traffic distribution             |
+| ECR                       | Docker image registry            |
+| DynamoDB                  | Leaderboard database             |
+| Secrets Manager           | Secure API credentials           |
+| Lambda                    | Bonus serverless feature         |
+| CloudWatch                | Monitoring and dashboards        |
+| SNS                       | Alarm notifications              |
+| Systems Manager           | SSH-less administration          |
+| NAT Gateway               | Private outbound internet access |
+| S3 Gateway Endpoint       | Private AWS service connectivity |
 
-For a production environment, GitHub OIDC would be preferred over long-lived CI access keys.
 
----
-
-## Observability
-
-The monitoring layer uses CloudWatch for operational visibility.
-
-The project includes or is designed to expose:
-
-- ALB target health
-- application/instance logs
-- CloudWatch dashboard
-- CloudWatch alarms
-- Auto Scaling health
-
-The `/health` endpoint is used by both the container and ALB health-check flow.
 
 ---
 
-## CI/CD
 
-Workflow:
 
-```text
-Push application change to main
-        -> GitHub Actions
-        -> Build Docker image
-        -> Authenticate to ECR
-        -> Push image
-        -> Start ASG instance refresh
-        -> New EC2 instance launches
-        -> user_data pulls the current image
-        -> ALB waits for a healthy target
-```
 
-Workflow file:
+# 🌐 Request Flow
 
-```text
-.github/workflows/deploy.yml
-```
+## User Request
 
-GitHub Actions credentials/settings currently required by the workflow include:
+<pre class="overflow-visible! px-0!" data-start="3902" data-end="4016"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>Internet
 
-```text
-AWS_ACCESS_KEY_ID
-AWS_SECRET_ACCESS_KEY
-ECR_URL
-```
+↓
 
-Do not commit these values to the repository.
+Application Load Balancer
 
----
+↓
 
-## Terraform
+Private EC2 Instance
 
-### Environment root
+↓
 
-Run Terraform from:
+Docker Container
 
-```bash
-cd infrastructure/environments/dev
-```
+↓
 
-### Initialise
+Flask Application</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></pre>
 
-```bash
-terraform init -reconfigure -backend-config=backend.hcl
-```
+## Movie API Request
 
-### Validate
+<pre class="overflow-visible! px-0!" data-start="4041" data-end="4147"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>Flask Application
 
-```bash
-terraform fmt -recursive ../../
-terraform validate
-```
+↓
 
-### Plan and apply
+IAM Role
 
-```bash
-terraform plan -out=tfplan
-terraform apply tfplan
-```
+↓
 
-### Useful outputs
+Secrets Manager
 
-```bash
-terraform output
-```
+↓
 
-Common shell variables:
+TMDB API Token
 
-```bash
-export ALB_DNS=$(terraform output -raw alb_dns_name)
-export ASG_NAME=$(terraform output -raw autoscaling_group_name)
-export TG_ARN=$(terraform output -raw target_group_arn)
-export ECR_URL=$(terraform output -raw ecr_repository_url)
-export SECRET_ARN=$(terraform output -raw tmdb_secret_arn)
-```
+↓
+
+NAT Gateway
+
+↓
+
+TMDB API</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></pre>
+
+## Leaderboard Flow
+
+<pre class="overflow-visible! px-0!" data-start="4171" data-end="4241"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>Flask Application
+
+↓
+
+DynamoDB
+
+↓
+
+Persistent Leaderboard Data</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></pre>
 
 ---
 
-## Store the TMDB token
+# 🏛 Infrastructure Design
 
-Do not place the token in `terraform.tfvars` or commit it to Git.
+## Networking
 
-```bash
-read -s TMDB_TOKEN
+The infrastructure uses:
 
-printf '{"TMDB_API_TOKEN":"%s"}' \
-  "$TMDB_TOKEN" \
-  > /tmp/tmdb-secret.json
+* Custom VPC
+* Multi Availability Zone deployment
+* Public subnets
+* Private subnets
+* Internet Gateway
+* NAT Gateway
+* S3 Gateway Endpoint
 
-chmod 600 /tmp/tmdb-secret.json
+Architecture decision:
 
-aws secretsmanager put-secret-value \
-  --secret-id "$SECRET_ARN" \
-  --secret-string file:///tmp/tmdb-secret.json \
-  --region eu-central-1
+The application servers remain private while only the ALB is exposed publicly.
 
-rm -f /tmp/tmdb-secret.json
-unset TMDB_TOKEN
-```
 
 ---
 
-## Local development
 
-Create/activate a Python virtual environment and install development dependencies.
+# 🖥 Compute Layer
 
-```bash
-pip install -r app/requirements-dev.txt
-```
+Application servers:
 
-Run tests:
+* Amazon Linux 2023
+* Docker runtime
+* Gunicorn WSGI server
+* Flask application
 
-```bash
-pytest app/tests -v
-```
+Features:
 
-Run Flask from the repository root:
+* IMDSv2 enabled
+* IAM instance profile
+* SSM management
+* Automated image pull from ECR
 
-```bash
-PYTHONPATH=app flask --app src.app:create_app run --debug
-```
-
-Or run Gunicorn from `app/`:
-
-```bash
-cd app
-gunicorn --bind 0.0.0.0:5000 "src.app:create_app()"
-```
 
 ---
 
-## Docker
 
-Build:
 
-```bash
-docker build -t cloudmovie-challenge:local ./app
-```
+# 🔐 Security Implementation
+
+Implemented security practices:
+
+✅ Private EC2 instances
+
+✅ No public SSH access
+
+✅ AWS Systems Manager instead of SSH
+
+✅ IAM roles instead of access keys
+
+✅ Secrets Manager for sensitive values
+
+✅ Security group least privilege
+
+✅ IMDSv2 enabled
+
+✅ Terraform-managed permissions
+
+Production improvements:
+
+* GitHub OIDC authentication
+* AWS WAF
+* HTTPS with ACM certificates
+* Route53 domain
+* Advanced IAM policies
+
+---
+
+
+
+# 🏗 Infrastructure as Code
+
+Terraform manages:
+
+<pre class="overflow-visible! px-0!" data-start="5309" data-end="5449"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>infrastructure/
+
+├── networking
+
+├── security
+
+├── compute
+
+├── alb
+
+├── ecr
+
+├── database
+
+├── secrets
+
+├── monitoring
+
+└── lambda
+</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></pre>
+
+Terraform workflow:
+
+Initialize:
+
+<pre class="overflow-visible! px-0!" data-start="5487" data-end="5556"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="relative h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class=""><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>terraform init </span><span class="ͼn">-reconfigure</span><span> \
+</span><span class="ͼn">-backend-config</span><span class="ͼg">=</span><span>backend.hcl</span></code></pre></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></div></div></pre>
+
+Format:
+
+<pre class="overflow-visible! px-0!" data-start="5568" data-end="5611"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="relative h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class=""><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>terraform fmt </span><span class="ͼn">-recursive</span><span> ../../</span></code></pre></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></div></div></pre>
+
+Validate:
+
+<pre class="overflow-visible! px-0!" data-start="5625" data-end="5655"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="relative h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class=""><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>terraform validate</span></code></pre></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></div></div></pre>
+
+Plan:
+
+<pre class="overflow-visible! px-0!" data-start="5665" data-end="5703"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="relative h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class=""><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>terraform plan </span><span class="ͼn">-out</span><span class="ͼg">=</span><span>tfplan</span></code></pre></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></div></div></pre>
+
+Deploy:
+
+<pre class="overflow-visible! px-0!" data-start="5715" data-end="5749"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="relative h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class=""><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>terraform apply tfplan</span></code></pre></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></div></div></pre>
+
+
+---
+
+
+
+# 🔄 CI/CD Pipeline
+
+GitHub Actions automatically handles:
+
+<pre class="overflow-visible! px-0!" data-start="5819" data-end="5991"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>Git Push
+
+↓
+
+Run Tests
+
+↓
+
+Build Docker Image
+
+↓
+
+Login to ECR
+
+↓
+
+Push Image
+
+↓
+
+Trigger ASG Instance Refresh
+
+↓
+
+Application Replacement
+
+↓
+
+ALB Health Validation</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></pre>
+
+Workflow files:
+
+<pre class="overflow-visible! px-0!" data-start="6011" data-end="6071"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>.github/workflows/
+
+├── infra-ci.yml
+
+└── deploy.yml</span></code></pre></div></div></div></div></div></div></div></div></div></div></div></div></div></pre>
+
+
+---
+
+
+
+# 📊 Monitoring & Observability
+
+The project implements CloudWatch monitoring for:
+
+## Operations Dashboard
+
+Dashboard contains:
+
+* ALB request metrics
+* Target health
+* HTTP errors
+* EC2 monitoring
+* DynamoDB usage
+* Application logs
+
+Example:
+
+<pre class="overflow-visible! px-0!" data-start="6330" data-end="6450"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>CloudMovie Challenge
+
+        FinOps & Operations Dashboard
+
+Requests
+Healthy Targets
+Errors
+Resource Usage
+Logs</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></pre>
+
+
+---
+
+
+
+# 🔎 Logs Insights
+
+CloudWatch Logs Insights allows debugging:
+
+Example query:
+
+<pre class="overflow-visible! px-0!" data-start="6541" data-end="6656"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="relative h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class=""><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>fields @</span><span class="ͼm">timestamp</span><span>,@message
+
+</span><span class="ͼg">|</span><span> filter @message </span><span class="ͼg">like</span><span></span><span class="ͼg">/</span><span>ERROR</span><span class="ͼg">|Exception/</span><span>
+
+</span><span class="ͼg">|</span><span> sort @</span><span class="ͼm">timestamp</span><span></span><span class="ͼg">desc</span><span>
+
+</span><span class="ͼg">|</span><span></span><span class="ͼg">limit</span><span></span><span class="ͼj">20</span></code></pre></div></div></div></div></div></div></div></div></div></div></div></div></div></div></pre>
+
+---
+
+
+
+# 🚨 Alerting
+
+Implemented alarms:
+
+* ALB 5xx errors
+* Unhealthy targets
+
+Alert flow:
+
+<pre class="overflow-visible! px-0!" data-start="6753" data-end="6814"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>CloudWatch Alarm
+
+↓
+
+SNS Topic
+
+↓
+
+Email Notification</span></code></pre></div></div></div></div></div></div></div></div></div></div></div></div></div></pre>
+
+---
+
+
+
+# ⚡ Lambda Bonus Feature
+
+A lightweight Lambda function was added as an optional serverless component.
+
+Purpose:
+
+* Demonstrate AWS Lambda integration
+* Show event-driven architecture capability
+* Keep resource usage within free-tier limits
+
+Configuration:
+
+* Runtime: Python 3.12
+* Architecture: ARM64
+* Memory: 128 MB
+
+---
+
+
+
+# 💰 Cost Optimization / FinOps
+
+The project intentionally balances production concepts with AWS free-tier awareness.
+
+Cost decisions:
+
+| Resource        | Decision                             |
+| --------------- | ------------------------------------ |
+| EC2             | Single instance development capacity |
+| NAT Gateway     | Single NAT instead of multi-AZ       |
+| DynamoDB        | On-demand mode                       |
+| Lambda          | Minimal memory allocation            |
+| CloudWatch Logs | Short retention                      |
+| ALB             | Used for architecture demonstration  |
+
+Major cost contributors:
+
+* NAT Gateway
+* Application Load Balancer
+* EC2
+
+Resources can be removed after demonstration:
+
+<pre class="overflow-visible! px-0!" data-start="7695" data-end="7762"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="relative h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class=""><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>terraform plan </span><span class="ͼn">-destroy</span><span>
+
+terraform apply destroy.tfplan</span></code></pre></div></div></div></div></div></div></div></div></div></div></div></div></div></div></pre>
+
+---
+
+
+
+# 🧪 Testing
+
+## Application Testing
+
+Framework:
+
+<pre class="overflow-visible! px-0!" data-start="7822" data-end="7836"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>pytest</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></pre>
 
 Run:
 
-```bash
-docker run \
-  --detach \
-  --name cloudmovie-local \
-  --publish 5000:5000 \
-  cloudmovie-challenge:local
-```
+<pre class="overflow-visible! px-0!" data-start="7846" data-end="7877"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="relative h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class=""><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>pytest app/tests </span><span class="ͼn">-v</span></code></pre></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></div></div></pre>
 
-Test:
+Example:
 
-```bash
-curl http://127.0.0.1:5000/health
-```
+<pre class="overflow-visible! px-0!" data-start="7890" data-end="7906"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>5 passed</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></pre>
 
 ---
 
-## Validation
+## Infrastructure Testing
 
-### Application health
+Terratest validates Terraform infrastructure.
 
-```bash
-curl "http://$ALB_DNS/health"
-```
+Location:
 
-### TMDB integration
+<pre class="overflow-visible! px-0!" data-start="8001" data-end="8024"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>tests/terratest</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></pre>
 
-```bash
-curl "http://$ALB_DNS/api/movie-spotlight"
-```
+Run:
 
-### ALB target health
+<pre class="overflow-visible! px-0!" data-start="8034" data-end="8056"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="relative h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class=""><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>go test </span><span class="ͼn">-v</span></code></pre></div></div></div></div></div></div></div></div></div></div></div></div></div></div></pre>
 
-```bash
-aws elbv2 describe-target-health \
-  --target-group-arn "$TG_ARN" \
-  --region eu-central-1 \
-  --query 'TargetHealthDescriptions[*].{Instance:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason}' \
-  --output table
-```
-
-### Auto Scaling Group
-
-```bash
-aws autoscaling describe-auto-scaling-groups \
-  --auto-scaling-group-names "$ASG_NAME" \
-  --region eu-central-1 \
-  --query 'AutoScalingGroups[0].Instances[*].{Instance:InstanceId,State:LifecycleState,Health:HealthStatus}' \
-  --output table
-```
-
-### DynamoDB
-
-```bash
-aws dynamodb scan \
-  --table-name cloudmovie-challenge-dev-leaderboard \
-  --region eu-central-1
-```
 
 ---
 
-## Cost strategy
 
-The environment intentionally prioritises **demonstrating architecture without running production-sized capacity**.
 
-Current development trade-offs include:
+# 🐳 Docker
 
-- one desired EC2 instance
-- maximum capacity of two for replacement/deployment
-- one NAT Gateway
-- HTTP ALB for the capstone demo
-- small DynamoDB workload
-- ephemeral dev environment
+Build image:
 
-The major idle cost drivers are the NAT Gateway, ALB, and EC2 resources.
+<pre class="overflow-visible! px-0!" data-start="8093" data-end="8155"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="relative h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class=""><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>docker build \
+</span><span class="ͼn">-t</span><span> cloudmovie-challenge:local ./app</span></code></pre></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></div></div></pre>
 
-When the environment is no longer required, use Terraform to destroy it rather than manually deleting individual resources.
+Run:
+
+<pre class="overflow-visible! px-0!" data-start="8165" data-end="8231"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="relative h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class=""><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>docker run \
+</span><span class="ͼn">-p</span><span></span><span class="ͼj">5000</span><span>:5000 \
+cloudmovie-challenge:local</span></code></pre></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></div></div></pre>
+
+Health check:
+
+<pre class="overflow-visible! px-0!" data-start="8250" data-end="8288"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="relative h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute inset-x-4 top-12 bottom-4"><div class="pointer-events-none sticky z-40 shrink-0 z-1!"><div class="sticky bg-token-border-light"></div></div></div><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class=""><div class="relative"><div class=""><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span class="ͼl">curl</span><span> localhost:5000/health</span></code></pre></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></div></div></pre>
+
+
+---
+
+
+
+# 📂 Repository Structure
+
+<pre class="overflow-visible! px-0!" data-start="8324" data-end="8510"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>cloudmovie-challenge/
+
+├── app/
+
+├── infrastructure/
+
+├── tests/
+
+│   └── terratest/
+
+├── .github/
+
+│   └── workflows/
+
+├── docs/
+
+├── README.md
+
+├── ARCHITECTURE.md
+
+└── ADR.md
+</span></code></pre></div></div></div></div></div></div></div></div></div><div class=""><div class=""></div></div></div></div></div></div></pre>
+
+
+---
+
+
+
+# 📸 Screenshots
+
+## Application
+
+Add:
+
+* Home page
+* Movie challenge page
+* Correct answer result
+* Leaderboard
+
+## AWS Infrastructure
+
+Add:
+
+* VPC
+* ALB
+* EC2
+* DynamoDB
+* Lambda
+
+## Operations
+
+Add:
+
+* CloudWatch dashboard
+* Logs Insights
+* SNS alarm
+
+
+---
+
+
+
+# 📚 Architecture Decisions
+
+Detailed decisions:
+
+* Why ALB?
+* Why EC2 instead of ECS?
+* Why DynamoDB?
+* Why NAT Gateway?
+* Why Secrets Manager?
+
+See:
+
+<pre class="overflow-visible! px-0!" data-start="8936" data-end="8950"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>ADR.md</span></code></pre></div></div></div></div></div></div></div></div></div></div></div></div></div></pre>
+
+
+---
+
+
+
+# 🎓 Key Learning Outcomes
+
+This project demonstrates that cloud engineering is about choosing appropriate services, not simply adding more resources.
+
+Key lessons:
+
+* ALB provides secure public access
+* ASG provides resilience
+* DynamoDB separates state from compute
+* Secrets Manager protects credentials
+* Terraform provides repeatability
+* GitHub Actions automates delivery
+* CloudWatch provides operational visibility
+* FinOps decisions reduce unnecessary spending
+
+
+---
+
+
+
+# 👨‍💻 Author
+
+**Hafiz Abdul Quddus**
+
+Cloud Engineering Bootcamp Capstone Project
+
+Ironhack 2026
+
+<pre class="overflow-visible! px-0!" data-start="9537" data-end="9682"><div class="relative w-full mt-4 mb-1"><div class=""><div class="contents"><div class="relative"><div class="h-full min-h-0 min-w-0"><div class="h-full min-h-0 min-w-0"><div class="border border-token-border-light border-radius-3xl corner-superellipse/1.1 rounded-3xl"><div class="h-full w-full border-radius-3xl bg-(--code-block-surface) corner-superellipse/1.1 overflow-clip rounded-3xl [--code-block-surface:var(--bg-elevated-secondary)] dark:[--code-block-surface:var(--composer-surface-primary)] lxnfua_clipPathFallback"><div class="pointer-events-none absolute end-1.5 top-1 z-2 md:end-2 md:top-1"></div><div class="relative"><div class="pe-11 pt-3"><div class="relative z-0 flex max-w-full"><div id="code-block-viewer" dir="ltr" class="q9tKkq_viewer cm-editor z-10 light:cm-light dark:cm-light flex h-full w-full flex-col items-stretch ͼd ͼr"><div class="cm-scroller"><pre class="cm-content q9tKkq_readonly m-0"><code><span>
+---
+
+After replacing README:
 
 ```bash
-terraform plan -destroy -out=destroy.tfplan
-terraform apply destroy.tfplan
-```
+git add README.md
+git commit -m "docs: finalize comprehensive project README"
+git push origin main</span></code></pre></div></div></div></div></div></div></div></div></div></div></div></div></div></pre>
 
-See [docs/cost.md](docs/cost.md) for the full cost discussion.
-
----
-
-## Deliberate trade-offs and production improvements
-
-This is a capstone **development** architecture, not a claim that every setting is production-optimal.
-
-For production I would add or change:
-
-- HTTPS using ACM
-- Route 53 custom domain
-- minimum two application instances
-- redundant NAT design or workload-specific endpoint strategy
-- AWS WAF
-- GitHub OIDC federation
-- immutable/versioned image tags instead of relying only on `latest`
-- stronger rollout/rollback controls
-- separate dev/staging/prod Terraform environments
-- more extensive monitoring and SLOs
 
 ---
-
-## Documentation
-
-- [Architecture](docs/architecture.md)
-- [Architecture decisions](docs/decisions.md)
-- [Deployment guide](docs/deployment.md)
-- [Cost strategy](docs/cost.md)
-- [Demo script](demo.md)
-
----
-
-## Key learning outcomes
-
-The strongest lesson from this project is that cloud engineering is not about adding the largest number of AWS services. It is about making each component serve a clear purpose.
-
-Examples from CloudMovie Challenge:
-
-- the ALB protects and decouples private compute
-- the ASG provides self-healing and deployment replacement
-- DynamoDB keeps state independent of EC2
-- Secrets Manager removes credentials from source code
-- the NAT Gateway exists because private compute genuinely needs an external API
-- the S3 endpoint avoids unnecessary NAT traffic
-- SSM removes the need for SSH
-- CloudWatch makes the runtime observable
-- GitHub Actions turns a code change into a repeatable deployment
-
-That combination is the core cloud-engineering story of the project.
