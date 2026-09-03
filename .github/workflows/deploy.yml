@@ -1,6 +1,8 @@
 name: Deploy CloudMovie
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - main
