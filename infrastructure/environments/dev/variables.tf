@@ -41,3 +41,9 @@ variable "enable_asg" {
   default     = false
 }
 
+variable "alert_email" {
+  description = "SNS operational alert email"
+  type        = string
+}
+
+

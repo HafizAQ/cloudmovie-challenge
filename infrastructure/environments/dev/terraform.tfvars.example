@@ -8,3 +8,5 @@ instance_type     = "t3.micro"
 create_standalone = false
 
 enable_asg        = false
+
+alert_email = "hafiz-abdul.quddus@outlook.com"

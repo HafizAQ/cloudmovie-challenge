@@ -121,6 +121,8 @@ module "monitoring" {
   environment  = var.environment
   aws_region   = var.aws_region
 
+  dynamodb_table_name      = module.database.table_name
+  alert_email              = var.alert_email
   load_balancer_arn_suffix = module.alb.load_balancer_arn_suffix
   target_group_arn_suffix  = module.alb.target_group_arn_suffix
 }

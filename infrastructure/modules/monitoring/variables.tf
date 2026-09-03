@@ -22,3 +22,14 @@ variable "target_group_arn_suffix" {
   description = "Target group ARN suffix for CloudWatch metrics"
   type        = string
 }
+
+variable "alert_email" {
+  description = "Email address for operational alerts"
+  type        = string
+}
+
+variable "dynamodb_table_name" {
+  description = "DynamoDB leaderboard table"
+  type        = string
+}
+
