@@ -9,65 +9,21 @@ TMDB_URL = (
 )
 
 
-def generate_emoji_clue(movie):
-    """
-    Creates a simple emoji clue from movie metadata.
-
-    For the capstone this intentionally stays simple.
-    A production version could use AI/NLP
-    or a dedicated metadata-to-emoji model.
-    """
-
-    title = movie["title"].lower()
-
-    emoji_map = {
-        "titanic": "🚢 ❤️ 🧊",
-        "inception": "😴 🏙️ 🌀",
-        "jurassic": "🦖 🏝️ 🚙",
-        "lord": "🧙 💍 🌋",
-        "ring": "💍 🌋 🧙",
-        "avatar": "🌌 👽 🌿",
-        "matrix": "💻 🕶️ 🔴",
-        "joker": "🃏 🏙️ 😈",
-        "batman": "🦇 🌃 🦸",
-        "star wars": "🚀 🌌 ⚔️",
-    }
+EMOJI_LIBRARY = [
+    "🎬 ⭐ 🎭",
+    "🚀 🌌 👽",
+    "❤️ 💔 🎵",
+    "🦖 🌴 🚙",
+    "🧙 💍 🌋",
+    "🕵️ 🔫 🏙️",
+    "😂 👨‍👩‍👧",
+    "👻 🏚️ 😱",
+]
 
 
-    for keyword, emoji in emoji_map.items():
-
-        if keyword in title:
-            return emoji
-
-
-    # Generic fallback
-    return "🎬 ⭐ 🎭"
-
-
-
-def generate_wrong_answers(correct_movie, movies):
-
-    titles = [
-        movie["title"]
-        for movie in movies
-        if movie["title"] != correct_movie
-    ]
-
-
-    wrong_answers = random.sample(
-        titles,
-        min(3, len(titles))
-    )
-
-
-    return wrong_answers
-
-
-
-def get_movie_question():
+def get_tmdb_movies():
 
     token = get_tmdb_token()
-
 
     response = requests.get(
         TMDB_URL,
@@ -77,58 +33,96 @@ def get_movie_question():
         },
         params={
             "language": "en-US",
-            "page": 1,
+            "page": random.randint(1,5)
         },
         timeout=5,
     )
 
-
     response.raise_for_status()
 
+    return response.json()["results"]
 
-    movies = response.json()["results"]
 
 
-    selected_movie = random.choice(
+def create_options(correct_movie, movies):
+
+    titles = [
+        movie["title"]
+        for movie in movies
+        if movie["title"] != correct_movie["title"]
+    ]
+
+    wrong_answers = random.sample(
+        titles,
+        3
+    )
+
+    options = (
+        wrong_answers +
+        [correct_movie["title"]]
+    )
+
+    random.shuffle(options)
+
+    return options
+
+
+
+def get_movie_question():
+
+    movies = get_tmdb_movies()
+
+
+    movie = random.choice(
         movies
     )
 
 
-    correct_answer = selected_movie["title"]
+    return {
+
+        "id": str(movie["id"]),
+
+        "clue": random.choice(
+            EMOJI_LIBRARY
+        ),
+
+        "question":
+        "Which movie is represented by these emojis?",
+
+        "options":
+        create_options(
+            movie,
+            movies
+        ),
+
+        "answer":
+        movie["title"],
+
+    }
 
 
-    wrong_answers = generate_wrong_answers(
-        correct_answer,
-        movies,
+
+def get_movie_spotlight():
+
+    movie = random.choice(
+        get_tmdb_movies()
     )
-
-
-    options = (
-        wrong_answers
-        + [correct_answer]
-    )
-
-
-    random.shuffle(options)
 
 
     return {
 
-        "id": str(
-            selected_movie["id"]
-        ),
+        "title":
+        movie["title"],
 
-        "clue": generate_emoji_clue(
-            selected_movie
-        ),
+        "overview":
+        movie["overview"],
 
-        "question": (
-            "Which movie is represented "
-            "by these emojis?"
-        ),
+        "rating":
+        movie["vote_average"],
 
-        "options": options,
-
-        "answer": correct_answer,
+        "release_date":
+        movie.get(
+            "release_date"
+        )
 
     }

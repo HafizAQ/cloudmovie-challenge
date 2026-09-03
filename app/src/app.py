@@ -5,23 +5,24 @@ from flask import (
     jsonify,
     render_template,
     request,
-    session,
+    session
 )
 
 from .services.leaderboard_service import LeaderboardService
-from .services.movie_service import get_movie_question
+from .services.movie_service import (
+    get_movie_question,
+    get_movie_spotlight
+)
 
 
 def create_app():
 
     app = Flask(__name__)
 
-    # Used for storing current question answer temporarily
     app.secret_key = os.environ.get(
-        "FLASK_SECRET",
-        "development-secret-key"
+        "SECRET_KEY",
+        "cloudmovie-development-key"
     )
-
 
     @app.route("/")
     def home():
@@ -29,7 +30,6 @@ def create_app():
         return render_template(
             "index.html"
         )
-
 
     @app.route("/game", methods=["GET", "POST"])
     def game():
@@ -40,65 +40,68 @@ def create_app():
                 "answer"
             )
 
-            correct_answer = session.get(
-                "answer"
+            question = session.get(
+                "question"
             )
 
 
-            if not correct_answer:
+            if question is None:
 
-                return render_template(
-                    "game.html",
-                    error="Game session expired. Please start again."
-                )
+                question = get_movie_question()
+
+                session["question"] = question
 
 
             is_correct = (
-                selected_answer == correct_answer
+                selected_answer == question["answer"]
             )
 
 
-            result = (
-                "Correct! 🎉"
-                if is_correct
-                else (
-                    f"Incorrect. "
-                    f"The correct answer was {correct_answer}."
+            if is_correct:
+
+                current_score = session.get(
+                    "score",
+                    0
                 )
-            )
+
+                session["score"] = current_score + 1
+
+                result = "Correct! 🎉"
 
 
-            # Generate next question
-            question = get_movie_question()
+            else:
+
+                result = (
+                    f"Incorrect ❌ "
+                    f"The correct answer was "
+                    f"{question['answer']}"
+                )
 
 
-            # Store next answer
-            session["answer"] = question["answer"]
+            new_question = get_movie_question()
+
+            session["question"] = new_question
 
 
             return render_template(
                 "game.html",
-                question=question,
+                question=new_question,
                 result=result,
                 is_correct=is_correct,
             )
 
 
-        # First visit / new question
+        # GET request
 
         question = get_movie_question()
 
-
-        # Store answer securely in session
-        session["answer"] = question["answer"]
+        session["question"] = question
 
 
         return render_template(
             "game.html",
             question=question,
         )
-
-
 
     @app.route("/leaderboard", methods=["GET", "POST"])
     def leaderboard():
@@ -163,8 +166,6 @@ def create_app():
             scores=scores,
         )
 
-
-
     # API endpoint for testing TMDB integration
 
     @app.route("/api/movie-question")
@@ -173,7 +174,6 @@ def create_app():
         movie = get_movie_question()
 
         return jsonify(movie)
-
 
 
     @app.route("/health")
@@ -186,9 +186,7 @@ def create_app():
             }
         )
 
-
     return app
-
 
 
 if __name__ == "__main__":

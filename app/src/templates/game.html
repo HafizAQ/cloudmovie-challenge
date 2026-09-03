@@ -7,7 +7,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Movie Challenge</title>
+  <title>CloudMovie Challenge</title>
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
@@ -30,17 +30,21 @@
 
       <h1>🎬 Guess the Movie</h1>
 
+      <div class="score-box">
+        Score:
+        {{ session.get('score',0) }}
+      </div>
 
-
+      
       {% if result %}
 
-      <div class="result
-{% if is_correct %}
-correct
-{% else %}
-incorrect
-{% endif %}
-">
+      <div class="result 
+        {% if is_correct %}
+        correct
+        {% else %}
+        incorrect
+        {% endif %}
+        ">
 
         {{ result }}
 
@@ -62,7 +66,6 @@ incorrect
 
 
 
-
       <div class="emoji-clue">
 
         {{ question.clue }}
@@ -76,7 +79,6 @@ incorrect
         {{ question.question }}
 
       </h2>
-
 
 
 
@@ -103,6 +105,56 @@ incorrect
 
 
       </form>
+
+
+
+
+      <div class="score-box">
+
+        🎯 Current Score:
+
+        <strong>
+          {{ session.get('score', 0) }}
+        </strong>
+
+      </div>
+
+
+
+
+      <hr>
+
+
+
+      <h3>
+        Save your score
+      </h3>
+
+
+
+      <form action="{{ url_for('leaderboard') }}" method="POST">
+
+
+        <input type="hidden" name="score" value="{{ session.get('score',0) }}">
+
+
+        <input type="text" name="player" placeholder="Enter your name" required>
+
+
+
+        <button class="button" type="submit">
+
+          🏆 Save Score
+
+        </button>
+
+
+      </form>
+
+
+
+
+      <br>
 
 
 
